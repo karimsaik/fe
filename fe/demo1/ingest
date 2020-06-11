@@ -1,0 +1,61 @@
+if (!request.files) { 
+    return [];
+}
+
+var attachedFilesList = request.files[0]; 
+var metricFileDataStructure = attachedFilesList[0]; 
+var fileName = metricFileDataStructure.fileName;
+var content = metricFileDataStructure.content;
+var lines = content.split("\r\n"); 
+if (!lines) {
+    return [];
+}
+
+var document = require("document");
+var mostRecentReading;
+for (var i = 0; i < lines.length; i++) {
+
+    var valuesArray = lines[i].split(",");
+    var metricDataStructure = { 
+        "temperature": valuesArray[0],
+        "humidity": valuesArray[1],
+        "timestamp": new Date(Number(valuesArray[2])) // turn the timestamp string into number then into a date
+    };
+
+    document.save(metricDataStructure);
+    if (i == lines.length - 1) {
+    	mostRecentReading = metricDataStructure;
+	}
+}
+
+var msgToTemperatureGauge = {
+    "id": "last_temperature", // this is the value of the tag property of the line chart widget
+    "result": mostRecentReading.temperature
+};
+
+var msgToHumidityGauge = {
+    "id": "last_humidity", // this is the value of the tag property of the line chart widget
+    "result": mostRecentReading.humidity
+};
+
+publish("responseChannel", msgToTemperatureGauge);
+publish("responseChannel", msgToHumidityGauge);
+
+var queryParameters = {
+    "query": "temperature is not null and humidity is not null", // our query expression
+    "fields": "temperature, humidity, timestamp", // specify the fields we need. Note: some metadata was automatically added so we filter it
+    "resultsPerPage": 20 // specify how many records max we want to be returned
+};
+
+var queryResponse = document.query(queryParameters);
+if (queryResponse.metadata.status == "failure") {
+    return queryResponse.metadata;
+}
+
+var msgToLineChart = {
+    "id": "dataLineChart", // this is the value of the tag property of the line chart widget
+    "result": queryResponse.result.documents
+};
+
+publish("responseChannel", msgToLineChart);
+return queryResponse.result.documents;

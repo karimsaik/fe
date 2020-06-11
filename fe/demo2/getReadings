@@ -1,0 +1,37 @@
+/*
+ * this script is invoked by the dashboard when it is loaded to fill the widgets
+ * with the values that are persisted into the datastore.
+ * this allows us not to show an empty dashboard (except for the first time) 
+ * while waiting for the file to be uploaded
+ */
+
+// load the "document" module to save/query data into/from the data store
+var document = require("document");
+
+var log = require("log"); log.setLevel("info"); log.info(JSON.stringify(request.parameters));
+
+// from the request, read the value of the "body" parameter that is sent by the calling widget
+var bodyParameter = request.parameters.body;
+var maxReadings = bodyParameter ? JSON.parse(bodyParameter).maxReadings : 1
+
+// prepare the query parameters to execute a query on the data store to retrieve the "maxReadings" last records
+var queryParameters = {
+    "query": "temperature is not null and humidity is not null",
+    "fields": "temperature, humidity, timestamp",
+    "resultsPerPage": maxReadings
+};
+
+// execute the query on the data store
+var getDocumentResponse = document.query(queryParameters);
+
+// verify if an error is returned, if so, just return it to the caller
+if (getDocumentResponse.metadata.status == "failure") {
+    return getDocumentResponse.metadata;
+}
+
+// if no error, return the number of records as requested by the caller
+if (maxReadings == 1) {
+    return getDocumentResponse.result.documents[0];
+}
+
+return getDocumentResponse.result.documents; 

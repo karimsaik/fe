@@ -1,0 +1,33 @@
+if (!request.files) { 
+    return [];
+}
+
+var attachedFilesList = request.files[0]; 
+var metricFileDataStructure = attachedFilesList[0]; 
+var fileName = metricFileDataStructure.fileName; // optional
+var content = metricFileDataStructure.content;
+var lines = content.split("\r\n"); 
+if (!lines) {
+    return [];
+}
+
+var metricArray = []; // the array where we will store the JavaScript data structures
+for (var i = 0; i < lines.length; i++) {
+
+    var valuesArray = lines[i].split(",");
+    var metricDataStructure = { 
+        "temperature": valuesArray[0],
+        "humidity": valuesArray[1],
+        "timestamp": new Date(Number(valuesArray[2]))
+    };
+console.log(JSON.stringify(metricDataStructure))
+    metricArray.push(metricDataStructure);
+}
+
+var msgToLineChart = {
+    "id": "dataLineChart", // this is the value of the tag property of the line chart widget
+    "result": metricArray
+};
+
+publish("responseChannel", msgToLineChart);
+return metricArray;
